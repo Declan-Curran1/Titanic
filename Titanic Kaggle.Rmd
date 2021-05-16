@@ -1,0 +1,222 @@
+---
+title: "Titanic Kaggle"
+author: "Declan"
+date: "18/04/2021"
+output: html_document
+---
+
+What do you need to do? 
+Predict which passengers in test data set are more likely to die/survive
+
+
+Background
+
+Machine learning model: Random forest 
+How does it work? Similar to decision tree that separates up the data but picks random samples from our train data set and tries out different trees where data is slices based on different factors. Then runs the data through these different decision trees and does a "vote"(I.e. out of all the decision trees formed, the data is run through each one to come for an outcome on the data. The tree which has the most correct values chosen is the winner)
+
+
+
+First we import data and get libraries ready
+```{r setup, include=FALSE}
+#import relevant libraries and data
+
+
+#install.packages("caret")
+#install.packages("randomForest")
+#install.packages("e1071")
+#install.packages("mlbench")
+
+
+library(dplyr)
+library(randomForest)
+library(caret)
+library(e1071)
+library(mlbench)
+
+#For tuning article
+
+install.packages()
+
+
+setwd("D:/Personal/Kaggle/Titanic")
+test <- read.csv("test.csv")
+train <- read.csv("train.csv")
+
+
+train
+test
+
+
+```
+
+
+```{r}
+#Next train the model
+#RandomForest(formula, ntree=n, mtry=FALSE, maxnodes = NULL)  <- uses this format
+
+
+#Need to convert target variable to type "Factor" before you can go ahead with RF model as RF function requires "Factor" format
+train$Survived <- as.character(train$Survived)
+train$Survived <- as.factor(train$Survived)
+
+#data.imputed <- rfImpute(Survived ~., data = train, iter=6)
+#We could use code above to begin training our model. However, we note that age contains some NA values where data not available. We will exclude for now but can eventually come back and redo by dropping the NA value observations. Alternatively, if the data has too many observations with NA values for age(enough that we would struggle to get sufficient data by excluding these observations), we could "create" new data by computing mean/standard deviation of exisitng age data and then take random samples to fill our NA values
+
+train <- train[,-6]
+
+#As such, run model on all information available except age. We guess a reasonable nodesize and number of trees for our first model(we will come back to optimise this later)
+
+model <- randomForest(Survived ~ Pclass + Sex + SibSp + Parch + Ticket + Fare + Embarked, data = train, proximity=TRUE, nodesize=3,ntree=8)
+
+#Type "model" to see what has been produced
+
+summary(model)
+
+#OOB Error -> Out of bag error(The error % when the model is run on data that was left out of model shows how accurate model is)
+
+
+#You have chosen the nodesize and number of trees above, you can use "tuneRF" Function to find optimal nodesize/number of trees
+```
+
+
+```{r}
+#We attempt to predict for the test data based on our already trained model
+
+submission <- as.data.frame(predict(model, test))
+
+write.csv(submission, "D:/Personal/Kaggle/Titanic/submission.csv")
+#Scored 0.76555, slight improvement over python submission
+```
+
+
+```{r}
+
+#Having trouble with below article
+
+
+#features <- setdiff(names(ames_train), "Sale_Price")
+#Remove x to get the values for which we will be testing "Survival" on
+
+
+#From machine learning theory - we know that the number of splits at each decision tree("mtry") can adversely affect the error of a given model if the mtry is too large or too small. To test for the optimal mtry, we look at how our OOB(Out of bag error) changes when we increase/decrease mtry
+
+x <- train[,-2]
+
+set.seed(123)
+
+
+m2 <- tuneRF(
+  x          = x,
+  y          = train$Survived,
+  ntreeTry   = 8,
+  mtryStart  = 2,
+  stepFactor = 0.5,
+  improve    = 0.0001,
+  trace      = FALSE  
+)
+
+#We can see from graph produced in TuneRF that OOB error is minimised for two nodes. However, we still have a small "depth"(Number of total splits or number of trees to grow) in our decision tree model. We know from machine learning theory that a higher "depth" will generally mean a more accurate model. Let us try the graph again with this in mind
+
+
+m3 <- tuneRF(
+  x          = x,
+  y          = train$Survived,
+  ntreeTry   = 400,
+  mtryStart  = 2,
+  stepFactor = 0.5,
+  improve    = 0.0001,
+  trace      = FALSE  
+)
+
+#With 400 trees generated, the new optimal nodesize is 4 which produced a much lower OOB error (Only 17% compared to 24% from last model
+
+
+```
+
+
+```{r}
+#We now predict our model again using number of trees = 400 and nodesize = 4
+
+model2 <- randomForest(Survived ~ Pclass + Sex + SibSp + Parch + Ticket + Fare + Embarked, data = train, proximity=TRUE, nodesize=4,ntree=100)
+
+#Submit our new model with the tuned parameters
+
+submission2 <- as.data.frame(predict(model2, test))
+names(submission2) <- c("Survived")
+
+write.csv(submission2, "D:/Personal/Kaggle/Titanic/submission2.csv")
+#Scored 0.77751 or 77.75% accuracy on the test data. This is an improvement over our previous result and is reflective of our lower OOB error
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//IGNORE BELOW - TESTING DIFFERENT METHODS FOR TUNING MODEL BUT WERE NOT USED
+
+
+
+
+```{r}/*
+fitControl <- trainControl(## 10-fold CV
+                            method = "repeatedcv",
+                            number = 3,
+                            ## repeated ten times
+                            repeats = 3)
+ 
+ set.seed(825)
+ gbmFit1 <- train(Survived ~ Pclass + Sex + SibSp, data = train, 
+                  method = "gbm", 
+                  trControl = fitControl,
+                  ## This last option is actually one
+                  ## for gbm() that passes through
+                  verbose = FALSE)
+
+
+
+ f0f
+
+
+# Random Search
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="random")
+set.seed(seed)
+mtry <- sqrt(ncol(train))
+rf_random <- train(Survived~ Pclass + Sex + SibSp + Parch + Ticket + Fare + Embarked, data=train, method="rf", metric="Accuracy", tuneLength=15, trControl=control)
+print(rf_random)
+plot(rf_random)
+
+
+
+```
+
+You could try a linear regression model next or improve the previous model?
+```{r}/*
+#Having trouble with computational power for gridsearch
+
+seed <- 7
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid")
+set.seed(seed)
+tunegrid <- expand.grid(.mtry=c(1:15))
+rf_gridsearch <- train(Survived~ Pclass + Sex + SibSp + Parch + Ticket + Fare + Embarked, data=train, method="rf", metric = "Accuracy")
+print(rf_gridsearch)
+plot(rf_gridsearch)
+
+rf_gridsearch <- train(Survived~ Pclass + Sex + SibSp + Parch + Ticket + Fare + Embarked, data=train, method="rf", metrc = "Accuracy", tuneGrid=tunegrid, trControl=control)
+print(rf_gridsearch)
+plot(rf_gridsearch)
+
+
+```
+
