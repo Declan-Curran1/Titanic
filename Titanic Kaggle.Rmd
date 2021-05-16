@@ -55,12 +55,12 @@ test
 #RandomForest(formula, ntree=n, mtry=FALSE, maxnodes = NULL)  <- uses this format
 
 
-#Need to convert target variable to type "Factor" before you can go ahead with RF model as RF function requires "Factor" format
+#Need to convert target variable to type "Factor" before you can go ahead with RF model
 train$Survived <- as.character(train$Survived)
 train$Survived <- as.factor(train$Survived)
 
 #data.imputed <- rfImpute(Survived ~., data = train, iter=6)
-#We could use code above to begin training our model. However, we note that age contains some NA values where data not available. We will exclude for now but can eventually come back and redo by dropping the NA value observations. Alternatively, if the data has too many observations with NA values for age(enough that we would struggle to get sufficient data by excluding these observations), we could "create" new data by computing mean/standard deviation of exisitng age data and then take random samples to fill our NA values
+#We could use code above to begin training our model. However, we note that age contains some NA values where data is not available. We will exclude age for now. However, we can eventually come back to this section and drop the NA observations so that we can improve our model by using age data. Alternatively, if the data has too many observations with NA values for age(enough that we would struggle to get sufficient data by excluding these observations), we could "create" new data by computing mean/standard deviation of exisitng age data and then take random samples to fill our NA values
 
 train <- train[,-6]
 
@@ -90,14 +90,6 @@ write.csv(submission, "D:/Personal/Kaggle/Titanic/submission.csv")
 
 
 ```{r}
-
-#Having trouble with below article
-
-
-#features <- setdiff(names(ames_train), "Sale_Price")
-#Remove x to get the values for which we will be testing "Survival" on
-
-
 #From machine learning theory - we know that the number of splits at each decision tree("mtry") can adversely affect the error of a given model if the mtry is too large or too small. To test for the optimal mtry, we look at how our OOB(Out of bag error) changes when we increase/decrease mtry
 
 x <- train[,-2]
